@@ -1,4 +1,3 @@
-@@ -1,62 +1,63 @@
 /*
 * Betterd Discord, uma modificação para o aplicativo de desktop do Discord
 * Copyright (c) 2024 Vendido e colaboradores
@@ -16,6 +15,7 @@
 * Você deveria ter recebido uma cópia da Licença Pública Geral GNU
 * junto com este programa. Caso contrário, consulte <https://www.gnu.org/licenses/>.
 */
+
 importar  {  showNotification  }  de  "@api/Notifications" ;
 importar  {  definePluginSettings  }  de  "@api/Settings" ;
 importe  {  Devs  }  de  "@utils/constants" ;
@@ -25,6 +25,7 @@ importar  definePlugin ,  {  OptionType  }  de  "@utils/types" ;
 importar  {  talvezPromptToUpdate  }  de  "@utils/updater" ;
 importe  {  filtros ,  findBulk ,  proxyLazyWebpack  }  de  "@webpack" ;
 importar  {  FluxDispatcher ,  NavigationRouter ,  SelectedChannelStore  }  de  "@webpack/common" ;
+
 const  CrashHandlerLogger  =  novo  Logger ( "CrashHandler" ) ;
 const  { ModalStack , DraftManager , DraftType , closeExpressionPicker }  =  proxyLazyWebpack ( ( )  =>  {
      módulos  const =  findBulk (
@@ -33,6 +34,7 @@ const  { ModalStack , DraftManager , DraftType , closeExpressionPicker }  =  pro
         filtros . byProps ( "DraftType" ) ,
         filtros . byProps ( "closeExpressionPicker" ,  "openExpressionPicker" ) ,
     ) ;
+
     retornar  {
         ModalStack : módulos [ 0 ] ,
         DraftManager : módulos [ 1 ] ,
@@ -40,6 +42,7 @@ const  { ModalStack , DraftManager , DraftType , closeExpressionPicker }  =  pro
         closeExpressionPicker : módulos [ 3 ] ?. closeExpressionPicker ,
     } ;
 } ) ;
+
  configurações  const =  definePluginSettings ( {
     tryToPreventCrashes : {
         tipo : OptionType . BOLEANO ,
