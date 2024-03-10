@@ -1,0 +1,152 @@
+@@ -1,62 +1,63 @@
+/*
+* Vencord, uma modificação para o aplicativo de desktop do Discord
+* Copyright (c) 2022 Vendido e colaboradores
+*
+* Este programa é um software livre: você pode redistribuí-lo e/ou modificá-lo
+* sob os termos da Licença Pública Geral GNU conforme publicada por
+* a Free Software Foundation, seja versão 3 da Licença, ou
+* (a seu critério) qualquer versão posterior.
+*
+* Este programa é distribuído na esperança de que seja útil,
+*mas SEM QUALQUER GARANTIA; mesmo sem a garantia implícita de
+* COMERCIALIZAÇÃO ou ADEQUAÇÃO A UM DETERMINADO FIM. Veja o
+* Licença Pública Geral GNU para mais detalhes.
+*
+* Você deveria ter recebido uma cópia da Licença Pública Geral GNU
+* junto com este programa. Caso contrário, consulte <https://www.gnu.org/licenses/>.
+*/
+importar  {  showNotification  }  de  "@api/Notifications" ;
+importar  {  definePluginSettings  }  de  "@api/Settings" ;
+importe  {  Devs  }  de  "@utils/constants" ;
+importar  {  Logger  }  de  "@utils/Logger" ;
+importe  {  closeAllModals  }  de  "@utils/modal" ;
+importar  definePlugin ,  {  OptionType  }  de  "@utils/types" ;
+importar  {  talvezPromptToUpdate  }  de  "@utils/updater" ;
+importe  {  filtros ,  findBulk ,  proxyLazyWebpack  }  de  "@webpack" ;
+importar  {  FluxDispatcher ,  NavigationRouter ,  SelectedChannelStore  }  de  "@webpack/common" ;
+const  CrashHandlerLogger  =  novo  Logger ( "CrashHandler" ) ;
+const  { ModalStack , DraftManager , DraftType , closeExpressionPicker }  =  proxyLazyWebpack ( ( )  =>  {
+     módulos  const =  findBulk (
+        filtros . byProps ( "pushLazy" ,  "popAll" ) ,
+        filtros . byProps ( "clearDraft" ,  "saveDraft" ) ,
+        filtros . byProps ( "DraftType" ) ,
+        filtros . byProps ( "closeExpressionPicker" ,  "openExpressionPicker" ) ,
+    ) ;
+    retornar  {
+        ModalStack : módulos [ 0 ] ,
+        DraftManager : módulos [ 1 ] ,
+        DraftType : módulos [ 2 ] ?. RascunhoType ,
+        closeExpressionPicker : módulos [ 3 ] ?. closeExpressionPicker ,
+    } ;
+} ) ;
+ configurações  const =  definePluginSettings ( {
+    tryToPreventCrashes : {
+        tipo : OptionType . BOLEANO ,
+        description : "Se deve tentar evitar travamentos do Discord." ,
+        padrão : verdadeiro
+    } ,
+    tryToNavigateToHome : {
+        tipo : OptionType . BOLEANO ,
+        description : "Se deve tentar navegar até a casa ao evitar travamentos do Discord." ,
+        padrão : falso
+    }
+} ) ;
+
+deixe  hasCrashedOnce  =  false ;
+deixe  isRecovering  =  false ;
+deixe  deveriaAttemptRecover  =  true ;
+
+exportar  padrão  definePlugin ( {
+@@ -71,38 +72,49 @@ exportar padrão definePlugin({
+        {
+            encontrar : ".Messages.ERRORS_UNEXPECTED_CRASH" ,
+            substituição : {
+                correspondência : / (? = este \. setState \( ) / ,
+                substitua : "$self.handleCrash(this);"
+                correspondência : / este \. setEstado \( ( . + ? ) \ ) / ,
+                substitua : "$self.handleCrash(este ,$1 );"
+            }
+        }
+    ] ,
+
+    handleCrash ( _este : qualquer )  {
+    handleCrash ( _this : qualquer ,  errorState : qualquer )  {
+        _esse . setState ( errState ) ;
+
+        // Já está se recuperando, evita erros que acontecem mais de uma vez rápido demais para acionar outra recuperação
+        if  ( isRecuperando )  return ;
+        isRecovering  =  true ;
+
+        // Tempo limite de 1 ms para evitar quebra de reação ao renderizar novamente
+        setTimeout ( ( )  =>  {
+            if  ( ! deveriaAttemptRecover )  {
+                tentar  {
+                    mostrar notificação ( {
+                        cor : "#eed202" ,
+                        title : "Discord travou!" ,
+                        body : "Awn :( Discord travou duas vezes rapidamente, sem tentar se recuperar." ,
+                        noPersist : verdadeiro ,
+                    } ) ;
+                }  pegar  {  }
+
+                retornar ;
+            }
+            tentar  {
+                // Evita um loop de travamento com um erro que não pôde ser tratado
+                if  ( ! deveriaAttemptRecover )  {
+                    tentar  {
+                        mostrar notificação ( {
+                            cor : "#eed202" ,
+                            title : "Discord travou!" ,
+                            body : "Awn :( Discord travou duas vezes rapidamente, sem tentar se recuperar." ,
+                            noPersist : verdadeiro
+                        } ) ;
+                    }  pegar  {  }
+
+                    retornar ;
+                }
+
+            deveriaAttemptRecover  =  falso ;
+            //Isso é suficiente para evitar um loop de travamento
+            setTimeout ( ( )  =>  deveriaAttemptRecover  =  true ,  500 ) ;
+                deveriaAttemptRecover  =  falso ;
+                //Isso é suficiente para evitar um loop de travamento
+                setTimeout ( ( )  =>  deveriaAttemptRecover  =  true ,  500 ) ;
+            }  pegar  {  }
+
+            tentar  {
+                if  ( ! hasCrashedOnce )  {
+                    hasCrashedOnce  =  verdadeiro ;
+                    MaybePromptToUpdate ( "Uh oh, o Discord acabou de travar... mas boas notícias, há uma atualização do Vencord disponível que pode corrigir esse problema! Gostaria de atualizar agora?" ,  true ) ;
+                }
+            }  pegar  {  }
+
+            tentar  {
+                if  ( configurações.store.tentativaToPreventCrashes ) {​​​​ 
+                    esse . handlePreventCrash ( _this ) ;
+                }
+@@ -118,7 +130,7 @@ exportar padrão definePlugin({
+                cor : "#eed202" ,
+                title : "Discord travou!" ,
+                body : "Tentando recuperar..." ,
+                noPersist : verdadeiro ,
+                noPersist : verdadeiro
+            } ) ;
+        }  pegar  {  }
+
+@@ -169,6 +181,10 @@ exportar padrão definePlugin({
+            }
+        }
+
+
+        // Defina isRecovering como false antes de definir o estado para nos permitir lidar corretamente com o próximo erro de travamento, caso isso aconteça
+        setImmediate ( ( )  =>  isRecovering  =  false ) ;
+
+        tentar  {
+            _esse . setState ( {  erro : nulo ,  informação : nulo  } ) ;
+        }  pegar  ( errar )  {
+            CrashHandlerLogger . debug ( "Falha ao atualizar o componente do manipulador de falhas." ,  err ) ;
+        }
+    }
+} ) ;
